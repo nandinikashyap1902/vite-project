@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 // Import your images (update these paths if needed)
 import pumpStart from "../assets/indicators/Pump/Pump-start.png";
 import pumpStop from "../assets/indicators/Pump/Pump-stop.png";
@@ -8,8 +8,16 @@ import valveClosed from "../assets/indicators/Valve/Valve-close.png";
 import tank10 from "../assets/indicators/Tank/Tank-10.gif";
 import tank50 from "../assets/indicators/Tank/Tank-50.gif";
 import tank100 from "../assets/indicators/Tank/Tank-100.gif";
+// Import static tank images
+import tank10Static from "../assets/indicators/Tank/Tank-10.png";
+import tank50Static from "../assets/indicators/Tank/Tank-50.png";
+import tank100Static from "../assets/indicators/Tank/Tank-100.png";
 
 const TOTAL_TIME = 600; // 10 minutes in seconds
+
+// Define standard SVG viewBox dimensions - this keeps proportions consistent
+const SVG_VIEWBOX_WIDTH = 800;
+const SVG_VIEWBOX_HEIGHT = 600;
 
 const PumpHouseImage: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
@@ -17,19 +25,17 @@ const PumpHouseImage: React.FC = () => {
   const [valveStatus, setValveStatus] = useState<"OPEN" | "CLOSED">("OPEN");
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
- // const [windowHeight,setWindowHeight] = useState(window.innerHeight);
-
-  // Handle window resize for responsiveness
+  
+  // Track window width for responsive adjustments
   useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
-     // setWindowHeight(window.innerHeight);
     };
-    
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
+  
+  // Timer logic
   useEffect(() => {
     if (timeLeft > 0 && pumpStatus === "START" && valveStatus === "OPEN") {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
@@ -41,11 +47,19 @@ const PumpHouseImage: React.FC = () => {
   const fillPercent = 10 + ((TOTAL_TIME - timeLeft) / TOTAL_TIME) * 90;
   const tankLevel = Math.round(fillPercent);
 
-  // Select tank image based on level
+  // Select tank image based on level and flow status
   const getTankImage = () => {
-    if (tankLevel >= 90) return tank100;
-    if (tankLevel >= 40) return tank50;
-    return tank10;
+    // Determine if flow is active
+    const isFlowActive = pumpStatus === "START" && valveStatus === "OPEN";
+    
+    // Return appropriate tank image based on level and flow status
+    if (tankLevel >= 90) {
+      return isFlowActive ? tank100 : tank100Static;
+    }
+    if (tankLevel >= 40) {
+      return isFlowActive ? tank50 : tank50Static;
+    }
+    return isFlowActive ? tank10 : tank10Static;
   };
 
   // Select pump image
@@ -68,148 +82,97 @@ const PumpHouseImage: React.FC = () => {
   const pipeColor = valveStatus === "OPEN" && pumpStatus === "START" 
     ? "#2196f3" // Bright blue when active
     : "#90a4ae"; // Grey when inactive
+  
+  // Debug mode - set to false in production
+  const debugPipe = false;
 
-  // Determine layout based on screen size
-  // More precise breakpoints for common device sizes
-  const isMobile = windowWidth < 480;
-  const isTablet = windowWidth >= 480 && windowWidth < 768;
-  const isLaptop = windowWidth >= 768 && windowWidth < 1024;
-  // const isDesktop = windowWidth >= 1024;
-  
-  // Component sizing based on device type
-  const getComponentSize = () => {
-    if (isMobile) return { width: '100%', height: '100vw', maxHeight: '90vh' }; 
-    if (isTablet) return { width: '85%', height: '70vw', maxHeight: '600px' };
-    if (isLaptop) return { width: '75%', height: '50vw', maxHeight: '500px' };
-    return { width: '55%', height: '40vw', maxHeight: '450px' }; // Desktop
-  };
-  
-  const componentSize = getComponentSize();
-  
-  // Layout for different screen sizes
-  const getLayout = () => {
-    if (isMobile) return { 
-      grid: 'auto auto / 1fr', 
-      visualSection: '270px',
-      padding: '10px'
-    };
-    if (isTablet) return { 
-      grid: 'auto / 3fr 2fr', 
-      visualSection: '100%',
-      padding: '15px'
-    };
-    return { 
-      grid: 'auto / 3fr 2fr', 
-      visualSection: '100%',
-      padding: '20px'
-    };
-  };
-  
-  const layout = getLayout();
-  
-  // Pipe dimensions that scale with container
-  const getPipeDimensions = () => {
-    if (isMobile) {
-      // For mobile, create a pipe that fits in the constrained space
-      return {
-        tankX: '25%',
-        tankY: '15%',
-        tankWidth: '30%',
-        pipeWidth: '5%', // Reduced from 8% to make it thinner
-        pipeStartXOffset: '15%', // Changed to position at top center of tank
-        pipeCornerXOffset: '40%', // Moved the corner to create more horizontal space
-        valveWidth: '12%',
-        pumpWidth: '15%',
-        pumpYOffset: '80%'
-      };
-    }
+  // FIXED POSITIONS - these never change regardless of screen size
+  // Using coordinates within the SVG viewBox (800x600)
+  const fixedPositions = {
+    // Tank position (top-left corner)
+    tankX: 200,
+    tankY: 100,
+    tankWidth: 200,
+    tankHeight: 200,
     
-    if (isTablet) {
-      return {
-        tankX: '20%',
-        tankY: '12%',
-        tankWidth: '28%',
-        pipeWidth: '4%', // Reduced from 6% to make it thinner
-        pipeStartXOffset: '14%', // Changed to position at top center of tank
-        pipeCornerXOffset: '45%', // Moved the corner to create more horizontal space
-        valveWidth: '10%',
-        pumpWidth: '13%',
-        pumpYOffset: '82%'
-      };
-    }
+    // Pipe dimensions
+    pipeWidth: 20,
     
-    // Default for larger screens
-    return {
-      tankX: '15%',
-      tankY: '10%',
-      tankWidth: '25%',
-      pipeWidth: '3%', // Reduced from 5% to make it thinner
-      pipeStartXOffset: '12.5%', // Changed to position at top center of tank
-      pipeCornerXOffset: '50%', // Moved the corner to create more horizontal space
-      valveWidth: '8%',
-      pumpWidth: '12%',
-      pumpYOffset: '85%'
-    };
+    // Valve and pump dimensions
+    valveSize: 50,
+    pumpSize: 60,
+    
+    // Pipe path
+    pipeStartX: 300, // Center of tank (tankX + tankWidth/2)
+    pipeStartY: 100, // Top of tank
+    pipeCornerY: 70, // Vertical rise above tank
+    pipeCornerX: 500, // Horizontal extension
+    pipeEndY: 480, // Bottom position of pipe
+    
+    // Valve and pump positions
+    valveX: 500,
+    valveY: 275, // Middle of vertical pipe
+    pumpX: 500,
+    pumpY: 480,
   };
   
-  const pipeDim = getPipeDimensions();
+  // Pipe corner radius
+  const cornerRadius = fixedPositions.pipeWidth * 1.5;
   
-  // Convert percentage to view box coordinates (0-100 range)
-  // const vbX = (percent: string) => `${parseFloat(percent)}`;
-  // const vbY = (percent: string) => `${parseFloat(percent)}`;
-  // const vbWidth = (percent: string) => `${parseFloat(percent)}`;
+  // Define the fixed pipe path
+  const pipePath = `M${fixedPositions.pipeStartX},${fixedPositions.pipeStartY} 
+                   V${fixedPositions.pipeCornerY} 
+                   H${fixedPositions.pipeCornerX - cornerRadius} 
+                   Q${fixedPositions.pipeCornerX},${fixedPositions.pipeCornerY} ${fixedPositions.pipeCornerX},${fixedPositions.pipeCornerY + cornerRadius} 
+                   V${fixedPositions.pipeEndY}`;
   
-  // Define the animation area (viewBox)
-  const svgViewBox = "0 0 100 100";
-  
-  // Calculate pipe path using percentages for positioning
-  const tankX = parseFloat(pipeDim.tankX);
-  const tankY = parseFloat(pipeDim.tankY);
-  const tankWidth = parseFloat(pipeDim.tankWidth);
-  const pipeWidth = parseFloat(pipeDim.pipeWidth);
-  
-  // Changed pipe start coordinates to be at the top center of the tank
-  const pipeStartX = tankX + parseFloat(pipeDim.pipeStartXOffset); // Center of tank
-  const pipeStartY = tankY; // Top of tank
-  const pipeCornerX = tankX + parseFloat(pipeDim.pipeCornerXOffset);
-  const pipeEndY = 85; // Bottom position as percentage
-  
-  // Create an L-shaped pipe with rounded corners that starts from the top of the tank
-  const cornerRadius = pipeWidth * 1.5;
-  const pipePath = `M${pipeStartX} ${pipeStartY} 
-                    V${pipeStartY - pipeWidth * 2} 
-                    H${pipeCornerX - cornerRadius} 
-                    Q${pipeCornerX} ${pipeStartY - pipeWidth * 2} ${pipeCornerX} ${pipeStartY - pipeWidth * 2 + cornerRadius} 
-                    V${pipeEndY}`;
-  
-  // Valve and pump positions based on pipe
-  const valveX = pipeCornerX;
-  const valveY = (pipeStartY - pipeWidth * 2 + cornerRadius + pipeEndY) / 2; // Middle of vertical pipe
-  const pumpX = pipeCornerX;
-  const pumpY = parseFloat(pipeDim.pumpYOffset);
-  
-  // Button styles with responsive sizes
-  const getButtonStyle = () => {
-    const baseFontSize = isMobile ? '0.85rem' : isTablet ? '0.9rem' : '0.95rem';
+  // Calculate pipe length for animation duration
+  const calculatePipeLength = () => {
+    // Vertical rise from tank to corner
+    const verticalRise = fixedPositions.pipeStartY - fixedPositions.pipeCornerY;
+    // Horizontal distance to corner
+    const horizontalDistance = fixedPositions.pipeCornerX - fixedPositions.pipeStartX;
+    // Vertical drop from corner to end
+    const verticalDrop = fixedPositions.pipeEndY - fixedPositions.pipeCornerY;
     
-    return {
-      padding: isMobile ? '0.7em 1.2em' : '0.8em 1.5em',
-      margin: isMobile ? '0.6em 0' : '0.8em 0',
-      fontSize: baseFontSize,
-      fontWeight: 600,
-      borderRadius: '0.5em',
-      border: 'none',
-      background: 'linear-gradient(90deg, #2196f3, #21cbf3)',
-      color: '#fff',
-      boxShadow: '0 2px 8px rgba(33,150,243,0.15)',
-      cursor: 'pointer',
-      transition: 'background 0.3s, transform 0.1s',
-      width: '100%',
-      textAlign: 'center' as 'center',
-    };
+    // Account for corner curve (approximate as 1/4 of circumference of a circle with radius = cornerRadius)
+    const cornerCurveLength = (Math.PI * cornerRadius) / 2;
+    
+    // Total pipe length
+    return verticalRise + horizontalDistance + verticalDrop + cornerCurveLength;
   };
   
-  const buttonStyle = getButtonStyle();
+  // Visual speed factor - adjust this to change water flow speed
+  const visualSpeedFactor = 0.6; // Lower = faster, Higher = slower
+  
+  // Total pipe length in SVG units
+  const pipeLength = calculatePipeLength();
+  
+  // Animation durations based on pipe length and speed factor
+  const gradientAnimDuration = pipeLength * visualSpeedFactor / 200; // For gradient effect
+  const flowAnimDuration = pipeLength * visualSpeedFactor / 100; // For rectangle movement
+
+  // Responsive breakpoints
+  const isSmallScreen = windowWidth < 768;
+  const isMobileScreen = windowWidth < 576;
+  
+  // Fixed button styles with responsive adjustments
+  const buttonStyle: React.CSSProperties = {
+    padding: isMobileScreen ? '0.7em 1em' : '0.8em 1.5em',
+    margin: isMobileScreen ? '0.6em 0' : '0.8em 0',
+    fontSize: isMobileScreen ? '13px' : '14px',
+    fontWeight: 600,
+    borderRadius: '0.5em',
+    border: 'none',
+    background: 'linear-gradient(90deg, #2196f3, #21cbf3)',
+    color: '#fff',
+    boxShadow: '0 2px 8px rgba(33,150,243,0.15)',
+    cursor: 'pointer',
+    transition: 'background 0.3s, transform 0.1s',
+    width: '100%',
+    maxWidth: isMobileScreen ? '300px' : '100%', // Limit button width on mobile
+    textAlign: 'center',
+  };
   
   const buttonHoverStyle: React.CSSProperties = {
     background: 'linear-gradient(90deg, #1976d2, #21cbf3)',
@@ -217,40 +180,40 @@ const PumpHouseImage: React.FC = () => {
   };
 
   return (
-    <div
+    <div 
       style={{
-        position: 'relative',
-        width: componentSize.width,
-        height: componentSize.height,
-        maxHeight: componentSize.maxHeight,
-        margin: '2vh auto',
+        width: '100%',
+        maxWidth: '1200px',
+        margin: '0 auto',
         background: '#f5f5f5',
-        borderRadius: 10,
+        borderRadius: '10px',
         boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        display: 'grid',
-        gridTemplateColumns: layout.grid.split(' / ')[1],
-        gridTemplateRows: layout.grid.split(' / ')[0],
-        overflow: 'hidden',
-        padding: layout.padding,
+        display: 'flex',
+        flexDirection: isSmallScreen ? 'column' : 'row',
+        alignItems: 'center',
+        padding: isMobileScreen ? '10px' : '20px',
       }}
     >
       {/* Visual section with tank, pipe, pump and valve */}
       <div style={{ 
-        position: 'relative', 
-        height: layout.visualSection,
-        width: '100%',
+        flex: isSmallScreen ? 'none' : '1 1 600px',
+        width: isSmallScreen ? '100%' : 'auto',
+        position: 'relative',
+        height: isMobileScreen ? '400px' : '500px',
+        minWidth: isSmallScreen ? '100%' : '500px',
+        maxWidth: '100%',
+        marginBottom: isSmallScreen ? '20px' : '0',
       }}>
-        {/* Single L-shaped pipe */}
+        {/* SVG container for all fluid system elements */}
         <svg 
           style={{
             position: 'absolute',
-            left: 0,
             top: 0,
+            left: 0,
             width: '100%',
             height: '100%',
-            zIndex: 2,
           }}
-          viewBox={svgViewBox}
+          viewBox={`0 0 ${SVG_VIEWBOX_WIDTH} ${SVG_VIEWBOX_HEIGHT}`}
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
@@ -258,13 +221,44 @@ const PumpHouseImage: React.FC = () => {
               <stop offset="0%" stopColor={pipeColor} />
               <stop offset="100%" stopColor={`${pipeColor}dd`} />
             </linearGradient>
+            
+            {/* Define patterns for valve and pump images */}
+            <pattern id="valvePattern" patternUnits="userSpaceOnUse" width={fixedPositions.valveSize} height={fixedPositions.valveSize} x={fixedPositions.valveX-fixedPositions.valveSize/2} y={fixedPositions.valveY-fixedPositions.valveSize/2}>
+              <image 
+                href={getValveImage()} 
+                width={fixedPositions.valveSize} 
+                height={fixedPositions.valveSize} 
+                preserveAspectRatio="xMidYMid meet"
+              />
+            </pattern>
+            
+            <pattern id="pumpPattern" patternUnits="userSpaceOnUse" width={fixedPositions.pumpSize} height={fixedPositions.pumpSize} x={fixedPositions.pumpX-fixedPositions.pumpSize/2} y={fixedPositions.pumpY-fixedPositions.pumpSize/2}>
+              <image 
+                href={getPumpImage()} 
+                width={fixedPositions.pumpSize} 
+                height={fixedPositions.pumpSize} 
+                preserveAspectRatio="xMidYMid meet"
+              />
+            </pattern>
           </defs>
           
-          {/* L-shaped pipe path */}
+          {/* Debug connection point */}
+          {debugPipe && (
+            <circle 
+              cx={fixedPositions.pipeStartX}
+              cy={fixedPositions.pipeStartY}
+              r="5"
+              fill="red"
+              stroke="white"
+              strokeWidth="2"
+            />
+          )}
+          
+          {/* L-shaped pipe */}
           <path
             d={pipePath} 
             stroke="url(#pipeGradient)"
-            strokeWidth={pipeWidth}
+            strokeWidth={fixedPositions.pipeWidth}
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -277,7 +271,7 @@ const PumpHouseImage: React.FC = () => {
           <path
             d={pipePath} 
             stroke="#0d47a1"
-            strokeWidth={pipeWidth * 1.2}
+            strokeWidth={fixedPositions.pipeWidth * 1.2}
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -286,6 +280,58 @@ const PumpHouseImage: React.FC = () => {
             }}
             opacity="0.2"
           />
+          
+          {/* Valve */}
+          <rect 
+            x={fixedPositions.valveX-fixedPositions.valveSize/2} 
+            y={fixedPositions.valveY-fixedPositions.valveSize/2} 
+            width={fixedPositions.valveSize} 
+            height={fixedPositions.valveSize} 
+            fill="url(#valvePattern)"
+          />
+          
+          {/* Pump */}
+          <rect 
+            x={fixedPositions.pumpX-fixedPositions.pumpSize/2} 
+            y={fixedPositions.pumpY-fixedPositions.pumpSize/2} 
+            width={fixedPositions.pumpSize} 
+            height={fixedPositions.pumpSize} 
+            fill="url(#pumpPattern)"
+          />
+          
+          {/* Tank */}
+          <image
+            x={fixedPositions.tankX}
+            y={fixedPositions.tankY}
+            width={fixedPositions.tankWidth}
+            height={fixedPositions.tankHeight}
+            href={getTankImage()}
+            preserveAspectRatio="xMidYMid meet"
+          />
+          
+          {/* Tank percentage */}
+          <g transform={`translate(${fixedPositions.tankX + fixedPositions.tankWidth + 20}, ${fixedPositions.tankY + 20})`}>
+            <rect
+              x="0"
+              y="0"
+              width="60"
+              height="30"
+              rx="5"
+              ry="5"
+              fill="rgba(255,255,255,0.9)"
+            />
+            <text
+              x="30"
+              y="20"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="16"
+              fontWeight="bold"
+              fill="#1976d2"
+            >
+              {tankLevel}%
+            </text>
+          </g>
         </svg>
         
         {/* Water flow animation */}
@@ -297,10 +343,9 @@ const PumpHouseImage: React.FC = () => {
               top: 0,
               width: '100%',
               height: '100%',
-              zIndex: 3,
-              overflow: 'visible',
+              pointerEvents: 'none'
             }}
-            viewBox={svgViewBox}
+            viewBox={`0 0 ${SVG_VIEWBOX_WIDTH} ${SVG_VIEWBOX_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
           >
             <defs>
@@ -309,7 +354,7 @@ const PumpHouseImage: React.FC = () => {
                   <animate 
                     attributeName="offset" 
                     values="0;1" 
-                    dur="2s" 
+                    dur={`${gradientAnimDuration}s`}
                     repeatCount="indefinite"
                   />
                 </stop>
@@ -317,7 +362,7 @@ const PumpHouseImage: React.FC = () => {
                   <animate 
                     attributeName="offset" 
                     values="0.2;1.2" 
-                    dur="2s" 
+                    dur={`${gradientAnimDuration}s`}
                     repeatCount="indefinite"
                   />
                 </stop>
@@ -327,10 +372,18 @@ const PumpHouseImage: React.FC = () => {
                 <path
                   d={pipePath} 
                   stroke="white"
-                  strokeWidth={pipeWidth}
+                  strokeWidth={fixedPositions.pipeWidth}
                   fill="none"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                />
+                {/* Add a rectangle mask to exclude the pump area */}
+                <rect
+                  x={fixedPositions.pumpX - fixedPositions.pumpSize/2 - fixedPositions.pipeWidth}
+                  y={fixedPositions.pumpY - fixedPositions.pumpSize/2}
+                  width={fixedPositions.pumpSize + fixedPositions.pipeWidth*2}
+                  height={fixedPositions.pumpSize}
+                  fill="black"
                 />
               </mask>
             </defs>
@@ -339,187 +392,109 @@ const PumpHouseImage: React.FC = () => {
             <rect 
               x="0" 
               y="0" 
-              width="100" 
-              height="100" 
+              width={SVG_VIEWBOX_WIDTH} 
+              height={SVG_VIEWBOX_HEIGHT} 
               fill="url(#waterFlow)" 
               mask="url(#pipeMask)"
             >
               <animate 
                 attributeName="y" 
-                from="100" 
-                to="-100" 
-                dur="3s" 
+                from={fixedPositions.pumpY - fixedPositions.pumpSize/2} 
+                to={-SVG_VIEWBOX_HEIGHT} 
+                dur={`${flowAnimDuration}s`}
                 repeatCount="indefinite"
               />
             </rect>
           </svg>
         )}
-
-        {/* Tank */}
-        <div
-          style={{
-            position: 'absolute',
-            left: `${tankX}%`,
-            top: `${tankY}%`,
-            width: `${tankWidth}%`,
-            height: 'auto',
-            aspectRatio: '1/1',
-            zIndex: 4,
-          }}
-        >
-          <img
-            src={getTankImage()}
-            alt="Tank"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              top: '-15%',
-              right: '-40%',
-              transform: 'translateY(-50%)',
-              fontSize: isMobile ? '0.9rem' : isTablet ? '1.1rem' : '1.3rem',
-              fontWeight: 'bold',
-              color: '#1976d2',
-              background: 'rgba(255,255,255,0.9)',
-              padding: isMobile ? '4px 6px' : '6px 12px',
-              borderRadius: 8,
-              zIndex: 10,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {tankLevel}%
-          </div>
-        </div>
-
-        {/* Valve */}
-        <div
-          style={{
-            position: 'absolute',
-            left: `${valveX-1.0}%`,
-            top: `${valveY}%`,
-            width: pipeDim.valveWidth,
-            transform: 'translate(-50%, -50%)',
-            zIndex: 6,
-          }}
-        >
-          <img
-            src={getValveImage()}
-            alt="Valve"
-            style={{
-              width: '100%',
-              height: 'auto',
-            }}
-          />
-        </div>
-
-        {/* Pump */}
-        <div
-          style={{
-            position: 'absolute',
-            left: `${pumpX}%`,
-            top: `${pumpY}%`,
-            width: pipeDim.pumpWidth,
-            transform: 'translate(-50%, -50%)',
-            zIndex: 5,
-          }}
-        >
-          <img
-            src={getPumpImage()}
-            alt="Pump"
-            style={{
-              width: '100%',
-              height: 'auto',
-            }}
-            
-          />
-        </div>
       </div>
 
-      {/* Control section */}
+      {/* Control section - center aligned on small screens */}
       <div
         style={{
+          flex: isSmallScreen ? 'none' : '0 0 300px',
+          width: isSmallScreen ? '100%' : 'auto',
           display: 'flex',
           flexDirection: 'column',
-          padding: isMobile ? '10px 15px' : isTablet ? '12px 18px' : '20px',
+          padding: isMobileScreen ? '10px' : '20px',
           justifyContent: 'center',
-          height: '100%',
+          alignItems: 'center', // Always center align contents
+          maxWidth: isSmallScreen ? '100%' : '350px',
         }}
       >
         {/* Timer Display */}
         <div
           style={{
-            fontSize: isMobile ? '1.3rem' : isTablet ? '1.5rem' : '1.8rem',
+            fontSize: isMobileScreen ? '1.5rem' : '1.8rem',
             fontWeight: 'bold',
             background: '#fff',
             padding: '0.5em 1em',
             borderRadius: 8,
-            marginBottom: isMobile ? '12px' : '20px',
+            marginBottom: '20px',
             textAlign: 'center',
             border: '1px solid #ddd',
+            width: '100%',
+            maxWidth: '250px', // Limit width for better appearance
           }}
         >
           {minutes}:{seconds}
         </div>
 
-        {/* Control Buttons */}
+        {/* Control Buttons - center aligned container */}
         <div style={{ 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: isMobile ? '8px' : '10px',
-          width: '100%'
+          gap: isMobileScreen ? '8px' : '10px',
+          width: '100%',
+          maxWidth: '300px', // Ensure buttons don't get too wide
+          alignItems: 'center', // Center-align buttons
         }}>
           <button
             style={{
               ...buttonStyle,
-              ...(hoveredBtn === "Start" ? buttonHoverStyle : {}),
-              ...(pumpStatus === "START" ? { background: '#4caf50', fontWeight: 'bold' } : {})
+              ...(hoveredBtn === 'pump-start' ? buttonHoverStyle : {}),
+              background: pumpStatus === "START" ? "linear-gradient(90deg, #388e3c, #4caf50)" : buttonStyle.background,
             }}
-            onMouseEnter={() => setHoveredBtn("Start")}
-            onMouseLeave={() => setHoveredBtn(null)}
             onClick={() => setPumpStatus("START")}
+            onMouseEnter={() => setHoveredBtn('pump-start')}
+            onMouseLeave={() => setHoveredBtn(null)}
           >
-            Start
+            Start Pump
           </button>
-
           <button
             style={{
               ...buttonStyle,
-              ...(hoveredBtn === "Stop" ? buttonHoverStyle : {}),
-              ...(pumpStatus === "STOP" ? { background: '#f44336', fontWeight: 'bold' } : {})
+              ...(hoveredBtn === 'pump-stop' ? buttonHoverStyle : {}),
+              background: pumpStatus === "STOP" ? "linear-gradient(90deg, #d32f2f, #f44336)" : buttonStyle.background,
             }}
-            onMouseEnter={() => setHoveredBtn("Stop")}
-            onMouseLeave={() => setHoveredBtn(null)}
             onClick={() => setPumpStatus("STOP")}
+            onMouseEnter={() => setHoveredBtn('pump-stop')}
+            onMouseLeave={() => setHoveredBtn(null)}
           >
-            Stop
+            Stop Pump
           </button>
-
           <button
             style={{
               ...buttonStyle,
-              ...(hoveredBtn === "Trip" ? buttonHoverStyle : {}),
-              ...(pumpStatus === "TRIP" ? { background: '#ff9800', fontWeight: 'bold' } : {})
+              ...(hoveredBtn === 'pump-trip' ? buttonHoverStyle : {}),
+              background: pumpStatus === "TRIP" ? "linear-gradient(90deg, #ff9800, #ffc107)" : buttonStyle.background,
             }}
-            onMouseEnter={() => setHoveredBtn("Trip")}
-            onMouseLeave={() => setHoveredBtn(null)}
             onClick={() => setPumpStatus("TRIP")}
+            onMouseEnter={() => setHoveredBtn('pump-trip')}
+            onMouseLeave={() => setHoveredBtn(null)}
           >
-            Trip
+            Trip Pump
           </button>
-
           <button
             style={{
               ...buttonStyle,
-              ...(hoveredBtn === "Valve" ? buttonHoverStyle : {})
+              ...(hoveredBtn === 'valve-toggle' ? buttonHoverStyle : {}),
+              background: valveStatus === "OPEN" ? "linear-gradient(90deg, #1565c0, #1e88e5)" : "linear-gradient(90deg, #c62828, #ef5350)",
+              marginTop: isMobileScreen ? '15px' : '20px',
             }}
-            onMouseEnter={() => setHoveredBtn("Valve")}
-            onMouseLeave={() => setHoveredBtn(null)}
             onClick={() => setValveStatus(valveStatus === "OPEN" ? "CLOSED" : "OPEN")}
+            onMouseEnter={() => setHoveredBtn('valve-toggle')}
+            onMouseLeave={() => setHoveredBtn(null)}
           >
             {valveStatus === "OPEN" ? "Close Valve" : "Open Valve"}
           </button>
